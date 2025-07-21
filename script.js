@@ -1,80 +1,136 @@
-// Função principal que inicia todo o simulador
-function iniciarSimulador() {
-    // Cria um array vazio para armazenar os produtos
-    const produtos = [];
-  
-    // Pede ao usuário quantos produtos ele deseja cadastrar
-    const quantidade = parseInt(prompt("Quantos produtos deseja cadastrar?"));
-  
-    // Verifica se a entrada é válida (um número maior que zero)
-    if (isNaN(quantidade) || quantidade <= 0) {
-      alert("Quantidade inválida."); // Alerta o usuário se for inválido
-      return; // Encerra a execução da função
-    }
-  
-    // Laço for que repete conforme a quantidade de produtos informada
-    for (let i = 0; i < quantidade; i++) {
-      // Pede o nome do produto
-      const nome = prompt(`Informe o nome do produto ${i + 1}:`);
-  
-      // Pede o preço do produto e converte para número
-      const preco = parseFloat(prompt(`Informe o preço do produto ${i + 1}:`));
-  
-      // Verifica se os dados inseridos são válidos
-      if (!nome || isNaN(preco)) {
-        alert("Entrada inválida. Produto ignorado.");
-        continue; // Pula para a próxima repetição do laço
-      }
-  
-      // Adiciona um objeto com nome e preço ao array de produtos
-      produtos.push({ nome, preco });
-    }
-  
-    // Exibe a lista de produtos no console, em forma de tabela
-    console.table(produtos);
-  
-    // Pergunta ao usuário se ele deseja ver o total gasto
-    const desejaTotal = confirm("Deseja ver o total gasto?");
-  
-    if (desejaTotal) {
-      // Se sim, calcula a soma dos preços com uma função separada
-      const total = calcularTotal(produtos);
-  
-      // Mostra o total em um alerta
-      alert(`Total gasto: R$ ${total.toFixed(2)}`);
-    } else {
-      // Se não, encontra o produto mais caro com outra função
-      const maisCaro = encontrarMaisCaro(produtos);
-  
-      // Exibe o produto mais caro ao usuário
-      alert(`Produto mais caro: ${maisCaro.nome} - R$ ${maisCaro.preco.toFixed(2)}`);
+// Dados simulados (poderiam vir de uma API)
+const produtosJSON = [
+  { id: 1, nome: "Notebook", preco: 3500 },
+  { id: 2, nome: "Smartphone", preco: 2500 },
+  { id: 3, nome: "Fone Bluetooth", preco: 300 },
+  { id: 4, nome: "Monitor", preco: 1200 }
+];
+
+// Carrinho com controle de quantidade
+let carrinho = [];
+
+/**
+ * renderizarProdutos()
+ * Exibe os produtos dinamicamente na página com botões de compra.
+ */
+function renderizarProdutos() {
+  const container = document.getElementById('produtos-container');
+  produtosJSON.forEach(produto => {
+    const div = document.createElement('div');
+    div.className = 'produto';
+
+    div.innerHTML = `
+      <strong>${produto.nome}</strong><br>
+      Preço: R$ ${produto.preco.toFixed(2)}<br>
+      <button onclick="adicionarAoCarrinho(${produto.id})">Adicionar ao carrinho</button>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+/**
+ * adicionarAoCarrinho(idProduto)
+ * Adiciona ou incrementa um item no carrinho.
+ */
+function adicionarAoCarrinho(idProduto) {
+  const produto = produtosJSON.find(p => p.id === idProduto);
+  if (!produto) return;
+
+  const itemExistente = carrinho.find(p => p.id === idProduto);
+
+  if (itemExistente) {
+    itemExistente.quantidade += 1;
+  } else {
+    carrinho.push({ ...produto, quantidade: 1 });
+  }
+
+  alert(`"${produto.nome}" adicionado ao carrinho.`);
+  atualizarCarrinho();
+}
+
+/**
+ * atualizarCarrinho()
+ * Renderiza a lista do carrinho e o total da compra.
+ */
+function atualizarCarrinho() {
+  const lista = document.getElementById('carrinho-lista');
+  lista.innerHTML = '';
+  let total = 0;
+
+  carrinho.forEach(item => {
+    const subtotal = item.preco * item.quantidade;
+    const li = document.createElement('li');
+    li.textContent = `${item.nome} - R$ ${item.preco.toFixed(2)} x ${item.quantidade} = R$ ${subtotal.toFixed(2)}`;
+    lista.appendChild(li);
+    total += subtotal;
+  });
+
+  document.getElementById('total').textContent = total.toFixed(2);
+  salvarCarrinhoNoLocalStorage();
+}
+
+/**
+ * finalizarCompra()
+ * Pergunta se o usuário deseja finalizar e limpa o carrinho.
+ */
+function finalizarCompra() {
+  if (carrinho.length === 0) {
+    alert("Seu carrinho está vazio.");
+    return;
+  }
+
+  const confirmar = confirm("Deseja finalizar a compra?");
+  if (confirmar) {
+    const total = carrinho.reduce((soma, item) => soma + item.preco * item.quantidade, 0);
+    alert(`Compra finalizada! Total: R$ ${total.toFixed(2)}.`);
+    carrinho = [];
+    atualizarCarrinho();
+  }
+}
+
+/**
+ * esvaziarCarrinho()
+ * Esvazia completamente o carrinho com confirmação.
+ */
+function esvaziarCarrinho() {
+  if (carrinho.length === 0) {
+    alert("O carrinho já está vazio.");
+    return;
+  }
+
+  const confirmar = confirm("Deseja esvaziar o carrinho?");
+  if (confirmar) {
+    carrinho = [];
+    atualizarCarrinho();
+    alert("Carrinho esvaziado com sucesso.");
+  }
+}
+
+/**
+ * salvarCarrinhoNoLocalStorage()
+ * Salva o estado atual do carrinho no navegador.
+ */
+function salvarCarrinhoNoLocalStorage() {
+  localStorage.setItem('carrinho', JSON.stringify(carrinho));
+}
+
+/**
+ * carregarCarrinhoDoLocalStorage()
+ * Restaura o carrinho salvo (caso exista).
+ */
+function carregarCarrinhoDoLocalStorage() {
+  const salvo = localStorage.getItem('carrinho');
+  if (salvo) {
+    try {
+      carrinho = JSON.parse(salvo);
+      atualizarCarrinho();
+    } catch (erro) {
+      console.warn("Erro ao restaurar carrinho:", erro);
     }
   }
-  
-  // Função que calcula o total de preços no array de produtos
-  function calcularTotal(lista) {
-    let soma = 0;
-  
-    // Itera sobre cada item e soma os preços
-    for (let item of lista) {
-      soma += item.preco;
-    }
-  
-    return soma; // Retorna o valor total
-  }
-  
-  // Função que encontra o produto com o maior preço
-  function encontrarMaisCaro(lista) {
-    // Inicializa com o primeiro produto como o mais caro
-    let maisCaro = lista[0];
-  
-    // Percorre todos os produtos para achar o de maior preço
-    for (let item of lista) {
-      if (item.preco > maisCaro.preco) {
-        maisCaro = item; // Atualiza o mais caro se encontrar um maior
-      }
-    }
-  
-    return maisCaro; // Retorna o produto mais caro encontrado
-  }
-  
+}
+
+// Executa ao carregar
+renderizarProdutos();
+carregarCarrinhoDoLocalStorage();
